@@ -188,7 +188,7 @@ void br_target_uart_listen(uint8_t enable) { (void)enable; }
 int br_i2c_scan(uint8_t *found, uint8_t max)
 {
     int n = 0;
-    for (uint16_t addr = 0x08; addr <= 0x77 && n < max; addr++) {
+    for (uint16_t addr = 0x08; addr <= 0x7B && n < max; addr++) {  /* 含 0x78-0x7B */
         if (i2c_start() != 0) continue;           /* 总线浮空，跳过 */
         I2_DR(I2C1) = (uint8_t)(addr << 1);
         if (i2c_wait_addr() == 0)
@@ -200,9 +200,9 @@ int br_i2c_scan(uint8_t *found, uint8_t max)
 
 int br_i2c_write(uint8_t addr7, const uint8_t *data, uint16_t len)
 {
-    if (i2c_start() != 0) return -1;
+    if (i2c_start() != 0) return -2;               /* START 失败：总线卡死/无时钟 */
     I2_DR(I2C1) = (uint8_t)(addr7 << 1);
-    if (i2c_wait_addr() != 0) return -1;
+    if (i2c_wait_addr() != 0) return -1;           /* NACK：设备无应答 */
     for (uint16_t i = 0; i < len; i++) {
         while (!(I2_SR1(I2C1) & (1u << 7))) { }    /* TxE */
         I2_DR(I2C1) = data[i];
@@ -215,9 +215,9 @@ int br_i2c_write(uint8_t addr7, const uint8_t *data, uint16_t len)
 int br_i2c_read(uint8_t addr7, uint16_t len, uint8_t *out)
 {
     if (len == 0) return 0;
-    if (i2c_start() != 0) return -1;
+    if (i2c_start() != 0) return -2;               /* START 失败 */
     I2_DR(I2C1) = (uint8_t)((addr7 << 1) | 1u);
-    if (i2c_wait_addr() != 0) return -1;
+    if (i2c_wait_addr() != 0) return -1;           /* NACK */
 
     if (len == 1) {
         I2_CR1(I2C1) &= ~(1u << 10);               /* 单字节：NACK */

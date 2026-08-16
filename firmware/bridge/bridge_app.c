@@ -90,19 +90,26 @@ static void dispatch(uint8_t cmd, uint16_t seq, const uint8_t *p, uint16_t plen)
         send_ack(BP_CMD_I2C_SCAN, seq, BP_STATUS_OK, found, (uint16_t)n);
         break;
     }
-    case BP_CMD_I2C_WRITE:
+    case BP_CMD_I2C_WRITE: {
         if (plen < 1) { send_error(ERR_BAD_PARAM); break; }
-        if (br_i2c_write(p[0], p + 1, plen - 1) != 0)
-            send_error(ERR_BUS);
+        int r = br_i2c_write(p[0], p + 1, plen - 1);
+        if (r == -2)
+            send_error(ERR_TIMEOUT);       /* START 失败：总线卡死/无时钟 */
+        else if (r != 0)
+            send_error(ERR_BUS);           /* NACK：设备无应答 */
         else
             send_ack(BP_CMD_I2C_WRITE, seq, BP_STATUS_OK, 0, 0);
         break;
+    }
     case BP_CMD_I2C_READ: {
         if (plen < 3) { send_error(ERR_BAD_PARAM); break; }
         uint16_t n = (uint16_t)(p[1] | ((uint16_t)p[2] << 8));
         uint8_t out[BP_MAX_PAYLOAD];
         if (n > BP_MAX_PAYLOAD) { send_error(ERR_BAD_PARAM); break; }
-        if (br_i2c_read(p[0], n, out) != 0)
+        int r = br_i2c_read(p[0], n, out);
+        if (r == -2)
+            send_error(ERR_TIMEOUT);
+        else if (r != 0)
             send_error(ERR_BUS);
         else
             send_ack(BP_CMD_I2C_READ, seq, BP_STATUS_OK, out, n);
