@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# 固件构建产物
+*.o
+*.elf
+*.hex
+*.bin
+*.exe
+
+# 生成文件
+wave_preview.png
+*.log
